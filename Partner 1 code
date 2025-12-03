@@ -1,0 +1,58 @@
+#partner1 clean code
+import pandas as pd
+
+# Load CSV
+df = pd.read_csv("Personal_Finance_Dataset.csv")
+
+# Clean column names
+df.columns = df.columns.str.strip().str.lower()
+
+# Clean the data
+df = df.dropna(subset=["transaction description", "amount"])
+df = df[df["amount"] != 0]
+
+# Ensure type column exists
+if "type" not in df.columns:
+    df["type"] = df["amount"].apply(lambda x: "income" if x > 0 else "expense")
+
+# Convert expenses to positive numbers
+df["clean_amount"] = df.apply(
+    lambda row: abs(row["amount"]) if row["type"].lower() == "expense" else row["amount"],
+    axis=1
+)
+
+# Expense categorization (your dataset already has "category", but we'll re-categorize)
+keywords = {
+    "food": ["food", "drink"],
+    "bills": ["utility", "utilities", "electric", "water", "bill"],
+    "entertainment": ["movie", "game", "netflix", "music"],
+    "transport": ["uber", "lyft", "gas", "fuel", "transport"],
+    "shopping": ["store", "shop", "mall"],
+    "health": ["hospital", "clinic", "pharmacy", "med"],
+    "rent": ["rent"],
+    "investment": ["investment"]
+}
+
+def categorize(desc):
+    desc = desc.lower()
+    for cat, words in keywords.items():
+        if any(w in desc for w in words):
+            return cat
+    return "other"
+
+df["auto_category"] = df["transaction description"].apply(categorize)
+
+# Calculate totals per category
+expense_totals = (
+    df[df["type"].str.lower() == "expense"]
+    .groupby("auto_category")["clean_amount"]
+    .sum()
+    .reset_index()
+    .sort_values("clean_amount", ascending=False)
+)
+
+# Export for Partner 2
+df.to_csv("clean_expenses.csv", index=False)
+expense_totals.to_csv("category_totals.csv", index=False)
+
+df.head(), expense_totals
