@@ -1,0 +1,156 @@
+# A simple, self-contained Python script to perform the required financial analysis.
+# This script simulates the backend logic and prepares data for the frontend.
+#
+# NOTE: This script must be run from an environment where pandas, numpy, and
+# statsmodels are installed (e.g., using pip install pandas numpy statsmodels).
+
+import pandas as pd
+import numpy as np
+import json
+import warnings
+from statsmodels.tsa.api import ExponentialSmoothing
+# If you wanted to use pyfolio directly (which is complex to set up),
+# you would import it here, but we are just calculating 'pyfolio-style' metrics.
+
+# Suppress minor future warnings for cleaner output
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+# --- 1. Mock Data Setup (Simulating CSV or DB Input) ---
+def load_mock_expense_data():
+    """
+    Creates a mock DataFrame representing historical monthly expenses.
+    
+    Partner 2 must replace this function with code to read the actual data
+    (e.g., from a database or a file uploaded by Partner 1).
+    """
+    data = {
+        'date': pd.to_datetime([
+            '2024-07-01', '2024-07-15', '2024-07-28', '2024-08-05', '2024-08-19', '2024-09-02', '2024-09-15', '2024-10-01', '2024-10-25', '2024-11-01', '2024-11-20', '2024-12-05' # Latest date is Dec 5
+        ]),
+        'amount': [150.00, 50.00, 300.00, 160.00, 40.00, 350.00, 10.00, 400.00, 50.00, 450.00, 100.00, 20.00],
+        'category': ['Food', 'Transport', 'Bills', 'Food', 'Transport', 'Bills', 'Entertainment', 'Bills', 'Food', 'Bills', 'Entertainment', 'Food'],
+        'description': ['Groceries', 'Bus Pass', 'Rent', 'Restaurant', 'Gas', 'Rent', 'Movie', 'Rent', 'Takeout', 'Rent', 'Concert', 'Coffee']
+    }
+    df = pd.DataFrame(data)
+    # Set 'date' as the index for time series analysis
+    df = df.set_index('date').sort_index()
+    return df
+
+# --- 2. Pyfolio-Inspired Budget Performance Metric ---
+def calculate_budget_performance(df):
+    """
+    Calculates a monthly spending change metric, analogous to pyfolio's
+    handling of financial returns. A high positive change is a spending spike.
+    """
+    # 1. Group by month and sum the total spending
+    monthly_spending = df['amount'].resample('M').sum()
+    
+    # 2. Calculate month-over-month change (%)
+    # This acts as our "rate of change" or "return" stream.
+    performance_delta = monthly_spending.pct_change().fillna(0) * 100
+    
+    # 3. Calculate key metrics
+    latest_delta = performance_delta.iloc[-1] if not performance_delta.empty else 0.0
+    
+    # We use max_spike as a risk indicator (largest positive spending jump)
+    max_spike = performance_delta.max() if not performance_delta.empty else 0.0
+    
+    return {
+        'latest_monthly_change_percent': round(latest_delta, 2),
+        'max_spending_spike_percent': round(max_spike, 2)
+    }
+
+# --- 3. Statsmodels Forecasting ---
+def forecast_spending(df, periods=3):
+    """
+    Uses statsmodels Exponential Smoothing to forecast future spending.
+    """
+    # Resample to monthly totals
+    monthly_series = df['amount'].resample('M').sum()
+    
+    # Ensure there is enough data for fitting the model
+    if len(monthly_series) < 3:
+        return {'forecast_available': False, 'forecast_values': []}
+
+    try:
+        # We use a simple Additive Exponential Smoothing Model
+        # This is robust and quick to implement.
+        model = ExponentialSmoothing(
+            monthly_series,
+            seasonal_periods=12,
+            trend='add',
+            seasonal='add',
+            initialization_method='estimated',
+            damped_trend=True
+        ).fit()
+        
+        # Forecast for the next 'periods' months
+        # Start prediction one month after the last recorded date
+        forecast = model.predict(start=monthly_series.index[-1] + pd.offsets.MonthBegin(1),
+                                 end=monthly_series.index[-1] + pd.offsets.MonthBegin(periods))
+        
+        # Prepare output structure
+        forecast_values = [
+            {'date': date.strftime('%Y-%m'), 'forecasted_amount': round(value, 2)}
+            for date, value in zip(forecast.index, forecast.values)
+        ]
+        
+        return {'forecast_available': True, 'forecast_values': forecast_values}
+        
+    except Exception as e:
+        # Log error but return a clean structure
+        print(f"Statsmodels Forecasting Error: {e}")
+        return {'forecast_available': False, 'forecast_values': [], 'error': str(e)}
+
+# --- 4. Main Execution and JSON Output ---
+def run_analysis():
+    """Runs all analyses and formats output as JSON for the frontend."""
+    df = load_mock_expense_data()
+    
+    # Basic Pandas analysis (required for visualization data)
+    total_spending = df['amount'].sum()
+    category_breakdown = df.groupby('category')['amount'].sum().sort_values(ascending=False)
+    
+    # Pyfolio-inspired analysis
+    performance_metrics = calculate_budget_performance(df)
+    
+    # Statsmodels forecasting
+    forecast_data = forecast_spending(df, periods=3)
+
+    # --- Prepare final JSON structure for Partner 1 ---
+    # This JSON structure is what Partner 1's frontend would fetch/receive.
+    
+    # Extract the forecast for the *next* month for the main metric card
+    next_month_forecast = forecast_data['forecast_values'][0]['forecasted_amount'] if forecast_data['forecast_available'] and forecast_data['forecast_values'] else 0.0
+    
+    # The history data must be converted from a Pandas index/series object to a list of dicts
+    monthly_history_list = df['amount'].resample('M').sum().rename('amount').reset_index()
+    monthly_history_list['date'] = monthly_history_list['date'].dt.strftime('%Y-%m')
+
+    results = {
+        'summary_metrics': {
+            # Total spending over the entire dataset
+            'total_spending': round(total_spending, 2), 
+            # Pyfolio-style metric: Latest MoM change in spending
+            'latest_monthly_change_percent': performance_metrics['latest_monthly_change_percent'],
+            # Statsmodels metric: Forecast for the immediate next month
+            'next_month_forecasted_spending': round(next_month_forecast, 2),
+        },
+        'visualization_data': {
+            # Data for a Pie Chart
+            'category_totals': category_breakdown.to_dict(), 
+            # Data for a Bar Chart (Historical monthly totals)
+            'monthly_history': monthly_history_list.to_dict(orient='records'), 
+            # Data for the Bar Chart/Forecast line
+            'forecast': forecast_data['forecast_values']
+        },
+        'metadata': {
+            'analysis_time': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
+        }
+    }
+    
+    # Output the JSON object
+    print(json.dumps(results, indent=4))
+
+if __name__ == '__main__':
+    run_analysis()
