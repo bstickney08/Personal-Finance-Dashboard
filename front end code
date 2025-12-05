@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard</title>
+    <!-- Load Tailwind CSS for rapid, responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom scrollbar for better visual appeal */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #6366f1; /* Changed from blue-500 to indigo-500 */ border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <!-- Updated primary color: blue-400 -> indigo-400 -->
+            <h1 class="text-4xl font-extrabold text-indigo-400">Personal Budget Tracker</h1>
+            <p class="text-gray-400">Effortless Expense Entry & Budget Insights</p>
+        </header>
+
+        <!-- Main Grid Layout (Responsive) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Input Panel (Partner 1 Focus) -->
+            <div id="input-panel" class="lg:col-span-1 card bg-gray-800 p-6 rounded-xl h-fit">
+                <h2 class="text-2xl font-semibold mb-4 text-indigo-300 flex items-center">
+                    <!-- Updated primary color: blue-300 -> indigo-300 -->
+                    <i data-lucide="wallet" class="w-6 h-6 mr-2"></i>
+                    Add New Expense
+                </h2>
+                
+                <form id="expense-form" class="space-y-4">
+                    <div>
+                        <label for="amount" class="block text-sm font-medium text-gray-300">Amount ($)</label>
+                        <input type="number" id="amount" required min="0.01" step="0.01"
+                               <!-- Updated focus rings: blue-500 -> indigo-500 -->
+                               class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500 transition duration-150">
+                    </div>
+                    <div>
+                        <label for="category" class="block text-sm font-medium text-gray-300">Category</label>
+                        <select id="category" required
+                                <!-- Updated focus rings: blue-500 -> indigo-500 -->
+                                class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500 transition duration-150">
+                            <option value="">Select a Category</option>
+                            <option value="Food">Food</option>
+                            <option value="Bills">Bills & Utilities</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Transport">Transport</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-gray-300">Description</label>
+                        <input type="text" id="description" required
+                               <!-- Updated focus rings: blue-500 -> indigo-500 -->
+                               class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500 transition duration-150">
+                    </div>
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-gray-300">Date</label>
+                        <input type="date" id="date" value="" required
+                               <!-- Updated focus rings: blue-500 -> indigo-500 -->
+                               class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500 transition duration-150">
+                    </div>
+                    <button type="submit"
+                            <!-- Updated button color: blue-600/700 -> indigo-600/700 -->
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-[1.01]">
+                        Log Expense
+                    </button>
+                </form>
+
+                <div id="auth-info" class="mt-6 text-xs text-center p-2 rounded-lg bg-gray-700">
+                    <p class="text-gray-400">User ID: <span id="user-id" class="font-mono text-indigo-400">Loading...</span></p>
+                    <p class="text-gray-400 mt-1">Status: <span id="auth-status" class="text-yellow-400">Authenticating...</span></p>
+                </div>
+            </div>
+
+            <!-- Dashboard Display (Partner 2 Data Placeholder) -->
+            <div id="dashboard-display" class="lg:col-span-2 space-y-8">
+                
+                <!-- Summary Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Total Spending Card -->
+                    <div class="card bg-gray-800 p-6 rounded-xl border-t-4 border-rose-500">
+                        <!-- Updated warning color: red-500 -> rose-500 -->
+                        <p class="text-sm font-medium text-gray-400">Current Month Spending</p>
+                        <p id="total-spending" class="text-3xl font-bold text-white mt-1">$0.00</p>
+                    </div>
+                    <!-- Performance Metric Card (Pyfolio Inspired) -->
+                    <div class="card bg-gray-800 p-6 rounded-xl border-t-4 border-teal-500">
+                        <!-- Updated success color: green-500 -> teal-500 -->
+                        <p class="text-sm font-medium text-gray-400">Monthly Performance (Budget vs Actual)</p>
+                        <!-- Updated success text color: green-400 -> teal-400 -->
+                        <p id="performance-metric" class="text-3xl font-bold text-teal-400 mt-1">+0%</p>
+                    </div>
+                    <!-- Forecast Card (Statsmodels Inspired) -->
+                    <div class="card bg-gray-800 p-6 rounded-xl border-t-4 border-indigo-500">
+                         <!-- Updated main color: blue-500 -> indigo-500 -->
+                        <p class="text-sm font-medium text-gray-400">Next Month Forecasted Spending</p>
+                        <p id="forecast-metric" class="text-3xl font-bold text-white mt-1">$0.00</p>
+                    </div>
+                </div>
+
+                <!-- Main Charts Area -->
+                <div class="card bg-gray-800 p-6 rounded-xl">
+                    <!-- Updated header color: blue-300 -> indigo-300 -->
+                    <h2 class="text-2xl font-semibold mb-4 text-indigo-300">Spending Overview</h2>
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <!-- Pie Chart Placeholder -->
+                        <div class="w-full md:w-1/2">
+                            <h3 class="text-lg font-medium mb-2 text-gray-300">Category Breakdown (Live Data)</h3>
+                            <div id="pie-chart-placeholder" class="bg-gray-700 h-64 flex items-center justify-center rounded-lg">
+                                <p class="text-gray-500">Load/Analyze data from Partner 2 to display Pie Chart here.</p>
+                                <div id="category-list" class="mt-4 text-sm w-full">
+                                    <!-- Expense list will populate here -->
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Bar Chart Placeholder -->
+                        <div class="w-full md:w-1/2">
+                            <h3 class="text-lg font-medium mb-2 text-gray-300">Historical & Forecasted Spending</h3>
+                            <div id="bar-chart-placeholder" class="bg-gray-700 h-64 flex items-center justify-center rounded-lg">
+                                <p class="text-gray-500">Load/Analyze data from Partner 2 to display Bar Chart here.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Firebase SDK Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- Global Variables (Provided by Canvas Environment) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Set log level for debugging
+        setLogLevel('error'); // Set to 'debug' for detailed logs
+
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let isAuthReady = false;
+
+        /**
+         * Converts the base path to the user's private collection path.
+         * @returns {string} The Firestore collection path.
+         */
+        function getCollectionPath() {
+            if (!userId) {
+                console.error("User ID not available for Firestore path.");
+                return null;
+            }
+            // Private data path: /artifacts/{appId}/users/{userId}/{collectionName}
+            return `artifacts/${appId}/users/${userId}/expenses`;
+        }
+
+        // --- 1. Initialization and Authentication ---
+        if (Object.keys(firebaseConfig).length > 0) {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // Listen for auth state changes
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    // Updated text color: blue-400 -> indigo-400
+                    document.getElementById('user-id').textContent = userId;
+                    document.getElementById('auth-status').textContent = 'Authenticated';
+                    document.getElementById('auth-status').classList.replace('text-yellow-400', 'text-teal-400'); // Changed to teal for success
+                    isAuthReady = true;
+                    console.log("Authentication successful. User ID:", userId);
+                    // Start listening to data once authenticated
+                    setupRealtimeListener();
+                } else {
+                    // Try to sign in with the custom token or anonymously
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            // Fallback to anonymous sign-in if no token is provided
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Firebase Auth Error:", error);
+                        document.getElementById('auth-status').textContent = 'Authentication Failed';
+                        document.getElementById('auth-status').classList.replace('text-yellow-400', 'text-rose-500'); // Changed to rose for error
+                        // Use a fallback unique ID if sign-in fails but still allow input
+                        userId = crypto.randomUUID();
+                        document.getElementById('user-id').textContent = userId;
+                        isAuthReady = true;
+                        console.log("Using temporary UUID:", userId);
+                        setupRealtimeListener(); // Still attempt listener, but it will likely fail without proper auth
+                    }
+                }
+            });
+        } else {
+            console.error("Firebase configuration is missing.");
+            document.getElementById('auth-status').textContent = 'Config Error';
+            document.getElementById('auth-status').classList.replace('text-yellow-400', 'text-rose-500'); // Changed to rose for error
+        }
+
+
+        // --- 2. Real-time Expense Input (Partner 1 Primary Task) ---
+        const expenseForm = document.getElementById('expense-form');
+        expenseForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!isAuthReady) {
+                console.warn("Authentication not ready. Please wait.");
+                document.getElementById('auth-status').textContent = 'Authenticating... Please wait.';
+                return;
+            }
+
+            const path = getCollectionPath();
+            if (!path) return;
+
+            const amount = parseFloat(document.getElementById('amount').value);
+            const category = document.getElementById('category').value;
+            const description = document.getElementById('description').value;
+            const dateStr = document.getElementById('date').value;
+
+            const newExpense = {
+                amount: amount,
+                category: category,
+                description: description,
+                date: dateStr, // Keep as YYYY-MM-DD string for simple analysis
+                timestamp: serverTimestamp(), // For sorting and creation time
+                userId: userId
+            };
+
+            try {
+                await addDoc(collection(db, path), newExpense);
+                console.log("Expense successfully logged:", newExpense);
+                // Clear the form after successful submission
+                expenseForm.reset();
+                // Ensure date defaults to today for quick entry
+                document.getElementById('date').valueAsDate = new Date();
+                
+            } catch (error) {
+                console.error("Error writing document:", error);
+                // Display a custom error message instead of alert()
+                showFeedback('Error logging expense. Check console for details.', 'rose');
+            }
+        });
+
+        // Set the default date input value to today
+        document.getElementById('date').valueAsDate = new Date();
+
+
+        // --- 3. Data Listener and Simple Display ---
+        function setupRealtimeListener() {
+            const path = getCollectionPath();
+            if (!path || !isAuthReady) return;
+
+            const expensesRef = collection(db, path);
+            
+            // Listen for real-time updates to the expenses collection
+            onSnapshot(expensesRef, (snapshot) => {
+                let totalSpending = 0;
+                let categoryMap = {};
+                
+                const expenses = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    expenses.push(data);
+                    totalSpending += data.amount;
+                    categoryMap[data.category] = (categoryMap[data.category] || 0) + data.amount;
+                });
+
+                // Display Total Spending
+                document.getElementById('total-spending').textContent = `$${totalSpending.toFixed(2)}`;
+                
+                // Display Category List (Simple Pie Chart Placeholder)
+                const categoryList = document.getElementById('category-list');
+                categoryList.innerHTML = ''; // Clear previous content
+                
+                let html = '<p class="text-sm font-bold text-gray-300 mb-2">Live Category Totals (Needs Pyfolio/Statsmodels for advanced analysis):</p>';
+                html += '<ul class="space-y-1">';
+                for (const [category, amount] of Object.entries(categoryMap)) {
+                    const percentage = (amount / totalSpending * 100).toFixed(1);
+                    html += `<li class="flex justify-between text-gray-400">
+                                <span>${category}</span>
+                                <span>$${amount.toFixed(2)} (${percentage}%)</span>
+                             </li>`;
+                }
+                html += '</ul>';
+                categoryList.innerHTML = html;
+            
+                // This is where Partner 1 would call Partner 2's API endpoints
+                // to get the advanced forecast and performance metrics, then update
+                // the #performance-metric and #forecast-metric fields.
+                // Example: fetch('/api/analyze_data', { method: 'POST', body: JSON.stringify(expenses) })
+                // The current display uses only the local Firestore data.
+
+            }, (error) => {
+                console.error("Firestore real-time listener failed:", error);
+            });
+        }
+        
+        // Simple feedback mechanism instead of alert()
+        function showFeedback(message, color) {
+            const feedbackDiv = document.createElement('div');
+            feedbackDiv.className = `fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white bg-${color}-600`;
+            feedbackDiv.textContent = message;
+            document.body.appendChild(feedbackDiv);
+            setTimeout(() => feedbackDiv.remove(), 4000);
+        }
+
+        // Initialize Lucide icons
+        window.addEventListener('load', () => {
+            lucide.createIcons();
+        });
+
+    </script>
+</body>
+</html>
