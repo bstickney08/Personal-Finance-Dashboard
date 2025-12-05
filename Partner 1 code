@@ -56,3 +56,5 @@ df.to_csv("clean_expenses.csv", index=False)
 expense_totals.to_csv("category_totals.csv", index=False)
 
 df.head(), expense_totals
+
+print("SUCCESS: Partner 1 script finished execution.") #ADDED BY PARTNER2
